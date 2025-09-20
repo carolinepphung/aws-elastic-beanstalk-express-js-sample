@@ -2,13 +2,14 @@ pipeline {
     agent {
         docker {
             image 'node:16'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
+            args '-u root:root' // run as root so npm install works
         }
     }
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
+                git branch: 'main',
+                    url: 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
             }
         }
         stage('Install Dependencies') {
@@ -23,17 +24,29 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t carolinepphung/express-app:latest .'
+                sh 'docker build -t my-app:latest .'
             }
         }
         stage('Push Docker Image') {
             environment {
-                DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+                DOCKER_HUB_CREDENTIALS = credentials('dockerhub-creds')
             }
             steps {
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-                sh 'docker push carolinepphung/express-app:latest'
+                sh '''
+                  echo "$DOCKER_HUB_CREDENTIALS_PSW" | docker login -u "$DOCKER_HUB_CREDENTIALS_USR" --password-stdin
+                  docker tag my-app:latest mydockerhubuser/my-app:latest
+                  docker push mydockerhubuser/my-app:latest
+                '''
             }
+        }
+    }
+    post {
+        always {
+            echo 'Cleaning up local docker state...'
+            sh 'docker system prune -af || true'
+        }
+        failure {
+            echo 'Pipeline failed — check console output.'
         }
     }
 }
