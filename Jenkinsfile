@@ -1,12 +1,12 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:16'       // Node 16 as build agent
-            args '-u root:root'   // Run as root to access Docker socket
-        }
+    agent any  // Use the Jenkins container itself
+
+    environment {
+        DOCKER_HUB = credentials('dockerhub-creds')
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -16,21 +16,25 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install --save'
+                sh '''
+                docker run --rm -v $PWD:/app -w /app node:16 npm install --save
+                '''
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'npm test'
+                sh '''
+                docker run --rm -v $PWD:/app -w /app node:16 npm test
+                '''
             }
         }
 
         stage('Security Scan') {
             steps {
                 sh '''
-                npm install -g snyk
-                snyk test || exit 1  # Fails pipeline if High/Critical issues detected
+                docker run --rm -v $PWD:/app -w /app node:16 npm install -g snyk
+                docker run --rm -v $PWD:/app -w /app node:16 snyk test || exit 1
                 '''
             }
         }
@@ -53,15 +57,9 @@ pipeline {
     }
 
     post {
-        always {
-            echo 'Pipeline finished!'
-        }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed — check console logs.'
-        }
+        always { echo 'Pipeline finished!' }
+        success { echo 'Pipeline succeeded!' }
+        failure { echo 'Pipeline failed — check console logs.' }
     }
 }
 
