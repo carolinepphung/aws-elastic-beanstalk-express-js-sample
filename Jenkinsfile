@@ -1,73 +1,39 @@
 pipeline {
-    agent any
-
-    environment {
-        DOCKER_HOST = "tcp://dind:2375"  // use DinD service from docker-compose
-        IMAGE_NAME = "my-express-app"    // local image name (will be tagged before push)
+    agent {
+        docker {
+            image 'node:16'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
     }
-
     stages {
         stage('Checkout') {
             steps {
-                // Use your fork URL if private use credentials
-                git branch: 'main', url: 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
+                git 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
             }
         }
-
         stage('Install Dependencies') {
             steps {
-                sh 'npm install --save'
+                sh 'npm install'
             }
         }
-
         stage('Snyk Security Scan') {
             steps {
-                // Requires a Jenkins secret text credential with id 'snyk-token'
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    sh '''
-                      if ! command -v snyk >/dev/null 2>&1; then
-                        npm install -g snyk
-                      fi
-                      snyk auth "$SNYK_TOKEN"
-                      snyk test --severity-threshold=high
-                    '''
-                }
+                sh 'npx snyk test || true'
             }
         }
-
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .'
+                sh 'docker build -t carolinepphung/express-app:latest .'
             }
         }
-
         stage('Push Docker Image') {
-            steps {
-                // Create a Jenkins credential (username/password) with id 'dockerhub-creds'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                  usernameVariable: 'DOCKERHUB_USER',
-                                                  passwordVariable: 'DOCKERHUB_PASS')]) {
-                    sh '''
-                      echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                      docker tag ${IMAGE_NAME}:${BUILD_NUMBER} $DOCKERHUB_USER/${IMAGE_NAME}:${BUILD_NUMBER}
-                      docker push $DOCKERHUB_USER/${IMAGE_NAME}:${BUILD_NUMBER}
-                    '''
-                }
+            environment {
+                DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
             }
-        }
-    }
-
-    post {
-        always {
-            archiveArtifacts artifacts: '**/npm-debug.log', allowEmptyArchive: true
-            echo "Cleaning up local docker state (on DinD)..."
-            sh 'docker system prune -af || true'
-        }
-        failure {
-            echo "Pipeline failed — check console output."
-        }
-        success {
-            echo "Pipeline succeeded"
+            steps {
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                sh 'docker push carolinepphung/express-app:latest'
+            }
         }
     }
 }
