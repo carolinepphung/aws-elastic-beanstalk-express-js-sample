@@ -1,21 +1,22 @@
 pipeline {
-    agent any   // uses Jenkins node directly
+    agent {
+        docker {
+            image 'node:16'
+            args '-v /var/run/docker.sock:/var/run/docker.sock -u root:root'
+        }
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
+                git branch: 'main', url: 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
             }
         }
         stage('Install Dependencies') {
-            steps {
-                sh 'npm install --save'
-            }
+            steps { sh 'npm install --save' }
         }
         stage('Run Tests') {
-            steps {
-                sh 'npm test'
-            }
+            steps { sh 'npm test' }
         }
         stage('Security Scan') {
             steps {
@@ -26,9 +27,7 @@ pipeline {
             }
         }
         stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t my-app:latest .'
-            }
+            steps { sh 'docker build -t my-app:latest .' }
         }
         stage('Push Docker Image') {
             steps {
@@ -41,11 +40,6 @@ pipeline {
                 }
             }
         }
-    }
-    post {
-        always { echo 'Pipeline finished!' }
-        success { echo 'Pipeline completed successfully!' }
-        failure { echo 'Pipeline failed — check console logs.' }
     }
 }
 
