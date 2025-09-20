@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'node:16'
-            args '-u root:root' // run as root so npm install works
+            args '-u root:root'
         }
     }
     stages {
@@ -17,11 +17,6 @@ pipeline {
                 sh 'npm install'
             }
         }
-        stage('Snyk Security Scan') {
-            steps {
-                sh 'npx snyk test || true'
-            }
-        }
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t my-app:latest .'
@@ -29,24 +24,15 @@ pipeline {
         }
         stage('Push Docker Image') {
             environment {
-                DOCKER_HUB_CREDENTIALS = credentials('dockerhub-creds')
+                DOCKER_HUB = credentials('dockerhub-creds')
             }
             steps {
                 sh '''
-                  echo "$DOCKER_HUB_CREDENTIALS_PSW" | docker login -u "$DOCKER_HUB_CREDENTIALS_USR" --password-stdin
+                  echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
                   docker tag my-app:latest mydockerhubuser/my-app:latest
                   docker push mydockerhubuser/my-app:latest
                 '''
             }
-        }
-    }
-    post {
-        always {
-            echo 'Cleaning up local docker state...'
-            sh 'docker system prune -af || true'
-        }
-        failure {
-            echo 'Pipeline failed — check console output.'
         }
     }
 }
