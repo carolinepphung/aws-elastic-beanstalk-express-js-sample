@@ -39,24 +39,6 @@ pipeline {
                 '''
             }
         }
-
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t my-app:latest .'
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_HUB_USR', passwordVariable: 'DOCKER_HUB_PSW')]) {
-                    sh '''
-                    echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
-                    docker tag my-app:latest mydockerhubuser/my-app:latest
-                    docker push mydockerhubuser/my-app:latest
-                    '''
-                }
-            }
-        }
     }
 }
 
