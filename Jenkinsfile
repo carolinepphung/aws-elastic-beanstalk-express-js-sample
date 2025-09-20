@@ -5,23 +5,30 @@ pipeline {
             args '-u root:root'
         }
     }
+
+    environment {
+        DOCKER_HOST = "tcp://dind:2375"
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
+                git branch: 'main', url: 'https://github.com/carolinepphung/aws-elastic-beanstalk-express-js-sample.git'
             }
         }
+
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh 'npm install --quiet'
             }
         }
+
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t my-app:latest .'
             }
         }
+
         stage('Push Docker Image') {
             environment {
                 DOCKER_HUB = credentials('dockerhub-creds')
