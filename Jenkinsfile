@@ -6,10 +6,6 @@ pipeline {
         }
     }
 
-    environment {
-        DOCKER_HOST = "tcp://dind:2375"
-    }
-
     stages {
         stage('Checkout') {
             steps {
