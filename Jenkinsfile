@@ -16,7 +16,7 @@ pipeline {
         stage('Install Node.js') {
             steps {
                 sh '''
-                    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+                    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
                     apt-get install -y nodejs
                 '''
             }
@@ -44,6 +44,20 @@ pipeline {
                 sh '''
                     npm install -g snyk
                     snyk test || echo "Snyk scan found issues but will not fail pipeline."
+                '''
+            }
+        }
+
+        stage('Prepare Dockerfile') {
+            steps {
+                writeFile file: 'Dockerfile', text: '''
+                FROM node:20
+                WORKDIR /app
+                COPY package*.json ./
+                RUN npm install --production
+                COPY . .
+                EXPOSE 8080
+                CMD ["npm", "start"]
                 '''
             }
         }
