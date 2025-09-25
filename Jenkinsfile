@@ -6,6 +6,11 @@ pipeline {
         }
     }
 
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+        DOCKER_IMAGE = "carolinepphung/aws-express-sample"
+    }
+    
     stages {
         stage('Checkout') {
             steps {
@@ -36,6 +41,15 @@ pipeline {
                 sh '''
                 npm install -g snyk
                 snyk test || echo "Snyk scan found issues but will not fail pipeline."
+                '''
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .
+                    docker tag $DOCKER_IMAGE:$BUILD_NUMBER $DOCKER_IMAGE:latest
                 '''
             }
         }
