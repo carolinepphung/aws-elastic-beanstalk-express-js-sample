@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
-        DOCKER_IMAGE = "carolinepphung/aws-express-sample"
+        DOCKER_IMAGE = "carolinephuongphung/assignment2"
     }
 
     stages {
