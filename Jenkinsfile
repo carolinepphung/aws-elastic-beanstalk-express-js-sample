@@ -1,5 +1,5 @@
 pipeline {
-    agent any   // Run on Jenkins agent with Docker installed
+    agent any
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
@@ -13,37 +13,37 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            agent {
-                docker {
-                    image 'node:16'
-                    args '-u root:root'
-                }
-            }
+        stage('Install Node.js') {
             steps {
-                sh 'npm install'
+                sh '''
+                    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+                    apt-get install -y nodejs
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install --save'
             }
         }
 
         stage('Run Tests') {
-            agent {
-                docker { image 'node:16' }
-            }
             steps {
                 script {
-                    sh 'npm test || echo "No tests defined"'
+                    def testStatus = sh(script: 'npm test || echo "No tests defined"', returnStatus: true)
+                    if (testStatus != 0) {
+                        echo "Tests skipped or not defined. Continuing pipeline..."
+                    }
                 }
             }
         }
 
         stage('Security Scan') {
-            agent {
-                docker { image 'node:16' }
-            }
             steps {
                 sh '''
-                  npm install -g snyk
-                  snyk test || echo "Snyk scan skipped or authentication missing"
+                    npm install -g snyk
+                    snyk test || echo "Snyk scan found issues but will not fail pipeline."
                 '''
             }
         }
